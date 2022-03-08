@@ -1,0 +1,62 @@
+---
+# As of the moment Ubuntu repository has easy-rsa 3.0.6 in it. 
+# That version doesn't work out of the box because of the bug in configuration file.
+- name: "Download easy-rsa from GitHub"
+  git:
+    repo: 'https://github.com/OpenVPN/easy-rsa.git'
+    dest: "{{ easyrsa_dest }}"
+    version: "{{ easyrsa_version }}"
+
+- name: Generate vars file
+  template:
+    src: "{{ item.src }}" 
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  with_items:
+    - { src: 'vars.j2', dest: "{{ easyrsa_dest }}/vars", mode: '600' }
+
+- name: "Initialize pki"
+  command: './easyrsa init-pki'
+  args:
+    chdir: "{{ easyrsa_dest }}/easyrsa3"
+    creates: "{{ easyrsa_dest }}/easyrsa3/pki"
+
+- name: "Build CA keys"
+  command: './easyrsa --batch build-ca nopass'
+  args:
+    chdir: "{{ easyrsa_dest }}/easyrsa3"
+    creates: "{{ easyrsa_dest }}/easyrsa3/pki/private/ca.key"
+
+- name: "Build the DH (Diffie-Hellman) key"
+  command: './easyrsa gen-dh'
+  args:
+    chdir: "{{ easyrsa_dest }}/easyrsa3"
+    creates: "{{ easyrsa_dest }}/easyrsa3/pki/dh.pem"
+
+- name: "Generate the server certificate/key"
+  command: './easyrsa --batch --req-cn=server gen-req vpn-server nopass'
+  args:
+    chdir: "{{ easyrsa_dest }}/easyrsa3"
+    creates: "{{ easyrsa_dest }}/easyrsa3/pki/private/vpn-server.key"
+
+- name: "Get the new CA to sign our server key"
+  command: './easyrsa --batch sign-req server vpn-server'
+  args:
+    chdir: "{{ easyrsa_dest }}/easyrsa3"
+    creates: "{{ easyrsa_dest }}/easyrsa3/pki/issued/vpn-server.crt"
+
+- name: "Create the client keys"
+  command: "./easyrsa --batch --req-cn={{ item }} gen-req {{ item }} nopass"
+  args:
+    chdir: "{{ easyrsa_dest }}/easyrsa3"
+    creates: "{{ easyrsa_dest }}/easyrsa3/pki/private/{{ item }}.key"
+  with_items: "{{ ovpn_clients.split(',') }}"
+  when: ovpn_clients is defined
+
+- name: "Get the certificate authority to sign the client request"
+  command: "./easyrsa --batch sign-req client {{ item }}"
+  args:
+    chdir: "{{ easyrsa_dest }}/easyrsa3"
+    creates: "{{ easyrsa_dest }}/easyrsa3/pki/issued/{{ item }}.crt"
+  with_items: "{{ ovpn_clients.split(',') }}"
+  when: ovpn_clients is defined

@@ -1,0 +1,1 @@
+This role works with easy-rsa version 3.

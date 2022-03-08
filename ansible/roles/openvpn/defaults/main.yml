@@ -1,0 +1,17 @@
+ovpn_version: '2.*'
+ovpn_proto: 'tcp'
+
+easyrsa_version: 'v3.0.7'
+
+easyrsa_dn: 'cn_only'
+easyrsa_req_country: 'US'
+easyrsa_req_province: 'California'
+easyrsa_req_city: 'San Francisco'
+easyrsa_req_org: 'My Organization'
+easyrsa_req_email: 'me@example.net'
+easyrsa_req_ou: 'My Organizational Unit'
+easyrsa_req_cn: 'example.com'
+
+easyrsa_keysize: 2048
+easyrsa_digest: 'sha256'
+easyrsa_dest: '/etc/openvpn/easy-rsa'

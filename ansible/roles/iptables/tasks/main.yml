@@ -1,0 +1,24 @@
+- name: Create /etc/iptables dir
+  file: 
+    path: /etc/iptables
+    state: directory
+
+- name: Install iptables-persistent
+  apt:
+    name: ['iptables-persistent']
+    state: present
+
+- name: Enable OpenVPN in iptables
+  shell: "{{ item }}"
+  with_list: 
+    - "iptables -I INPUT -p tcp --dport {{ ovpn_port }} -j ACCEPT"
+    - "iptables -I INPUT -p udp --dport 53 -j ACCEPT"
+    - "iptables -I INPUT -p tcp --dport 53 -j ACCEPT"
+    - "iptables -D FORWARD -j REJECT --reject-with icmp-host-prohibited"
+    - "iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o {{ ansible_default_ipv4.interface }} -j MASQUERADE"
+
+- name: Save v4 rules for iptables-persistent
+  shell: "iptables-save > /etc/iptables/rules.v4"
+
+- name: Save v6 rules for iptables-persistent
+  shell: "ip6tables-save > /etc/iptables/rules.v6"

@@ -1,0 +1,10 @@
+terraform/.terraform/*
+
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.lock.hcl
+
+*.log
+*.tfvars
+
+ansible/configs/*

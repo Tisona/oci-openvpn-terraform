@@ -1,0 +1,20 @@
+#!/bin/bash
+
+PKI_DIR={{ easyrsa_dest }}/easyrsa3/pki
+PRIVATE_DIR={{ easyrsa_dest }}/easyrsa3/pki/private
+ISSUED_DIR={{ easyrsa_dest }}/easyrsa3/pki/issued
+OPENVPN_DIR=/etc/openvpn
+BASE_CONFIG=/etc/openvpn/client-configs/base.conf
+OUTPUT_DIR=/etc/openvpn/client-configs/files
+
+cat ${BASE_CONFIG} \
+    <(echo -e '<ca>') \
+    ${PKI_DIR}/ca.crt \
+    <(echo -e '</ca>\n<cert>') \
+    ${ISSUED_DIR}/${1}.crt \
+    <(echo -e '</cert>\n<key>') \
+    ${PRIVATE_DIR}/${1}.key \
+    <(echo -e '</key>\n<tls-auth>') \
+    ${OPENVPN_DIR}/ta.key \
+    <(echo -e '</tls-auth>') \
+    > ${OUTPUT_DIR}/${1}.ovpn

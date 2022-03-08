@@ -1,0 +1,73 @@
+- name: Install OpenVPN
+  apt:
+    name: "['openvpn={{ ovpn_version }}']"
+    state: present
+    update_cache: yes
+
+- name: Create target directories
+  file: 
+    path: "{{ item }}"
+    state: directory
+    mode: '700'
+  with_items:
+    - '/etc/openvpn/client-configs'
+    - '/etc/openvpn/client-configs/files'
+
+- name: Generate config files
+  template:
+    src: "{{ item.src }}" 
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  with_items:
+    - { src: 'server.conf.j2', dest: '/etc/openvpn/server.conf', mode: '600' }
+    - { src: 'base.conf.j2', dest: '/etc/openvpn/client-configs/base.conf', mode: '600' }
+    - { src: 'make_config.sh.j2', dest: '/etc/openvpn/make_config.sh', mode: '700' }
+
+- include_tasks: easy-rsa.yml
+
+- name: Copy server keys to OpenVPN dir
+  copy:
+    src: "{{ item.src }}"
+    dest: '/etc/openvpn/'
+    mode: '600'
+    remote_src: yes
+  with_items:
+    - { src: "{{ easyrsa_dest }}/easyrsa3/pki/ca.crt" }
+    - { src: "{{ easyrsa_dest }}/easyrsa3/pki/issued/vpn-server.crt" }
+    - { src: "{{ easyrsa_dest }}/easyrsa3/pki/private/vpn-server.key" }
+    - { src: "{{ easyrsa_dest }}/easyrsa3/pki/dh.pem" }
+
+- name: Generate ta.key
+  command: 'openvpn --genkey --secret ta.key'
+  args:
+    chdir: '/etc/openvpn'
+    creates: '/etc/openvpn/ta.key'
+
+- name: Generate client config files
+  command: "./make_config.sh {{ item }}"
+  args:
+    chdir: '/etc/openvpn'
+    creates: "/etc/openvpn/client-configs/files/{{ item }}.ovpn"
+  with_items: "{{ ovpn_clients.split(',') }}"
+  when: ovpn_clients is defined
+
+- name: Download client config files
+  fetch:
+    src: "/etc/openvpn/client-configs/files/{{ item }}.ovpn"
+    dest: configs
+  with_items: "{{ ovpn_clients.split(',') }}"
+  when: ovpn_clients is defined
+
+- name: Enable ip forwarding
+  sysctl:
+    name: 'net.ipv4.ip_forward'
+    value: '1'
+    sysctl_set: yes
+    state: present
+
+- name: Start OpenVPN server
+  service: 
+    name: openvpn@server
+    state: started
+    enabled: yes
+    
